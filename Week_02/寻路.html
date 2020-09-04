@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>寻路</title>
+  <style>
+    body{
+      display: flex;
+      align-items: flex-start;
+    }
+    #map{
+      width: 1000px;
+      height: 1000px;
+      display: flex;
+      flex-wrap: wrap;
+      border: 1px solid lightcoral;
+    }
+    .cell{
+      width: 8px;
+      height: 8px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<button id="save">保存</button>
+<button id="star">开始</button>
+<script type="text/javascript">
+  function sleep(t){
+    return new Promise(resolve => {
+      setTimeout(resolve, t)
+    })
+  }
+  window.onload = function (){
+    const width = 100
+    const height = 100
+    const localMap = JSON.parse(window.localStorage.getItem('localMap'))
+    const map = localMap || Array(width * height).fill(0)
+    const mapNode = document.getElementById('map')
+    let mousedown = false
+    let clear = false
+    mapNode.addEventListener('contextmenu', function (e){e.preventDefault()})
+    mapNode.addEventListener('mousedown' ,function (e){
+      mousedown = true
+      clear = e.which === 3
+    })
+    mapNode.addEventListener('mouseup' ,function (){
+      mousedown = false
+    })
+    for (let i = 0; i < map.length; i++) {
+      const cell = document.createElement('div')
+      cell.className = 'cell'
+      if (map[i]) cell.style.backgroundColor = 'skyblue'
+      cell.addEventListener('mousemove' , function () {
+        if (mousedown) {
+          if (clear){
+            cell.style.backgroundColor = ''
+            map[i] = 0
+          }else {
+            cell.style.backgroundColor = 'skyblue'
+            map[i] =  1
+          }
+        }
+      })
+      mapNode.appendChild(cell)
+    }
+    document.getElementById('save').addEventListener('click', function () {
+      window.localStorage.setItem('localMap', JSON.stringify(map))
+    })
+    async function bfs(target, start =[0,0]){
+      const cells = document.getElementsByClassName('cell')
+      const [x, y] = start
+      const [x1, y1] = target
+      if (x === x1 && y === y1) return [start]
+      const cloneMap = [...map];
+      const getIndex = (x, y) => x + y * height
+      const cell = {
+        x, y, pre: [0]
+      }
+      let queue = [cell];
+
+      while (queue.length){
+        const c = queue.shift();
+        const {x ,y, pre} = c
+        const index = getIndex(x, y)
+        cells[index].style.backgroundColor = 'red'
+        await sleep(1)
+        cloneMap[index] = 2
+        const left = {
+          x: x - 1, y, pre: pre.concat(getIndex(x - 1, y))
+        }
+        const right = {
+          x: x + 1, y, pre: pre.concat(getIndex(x + 1, y))
+        }
+        const up = {
+          x, y: y - 1, pre: pre.concat(getIndex(x, y - 1))
+        }
+        const down = {
+          x, y: y + 1, pre: pre.concat(getIndex(x, y + 1))
+        }
+        await extension(left)
+        await extension(right)
+        await extension(up)
+        await extension(down)
+      }
+
+      async function extension(node){
+        const {x, y} = node
+        if (x === x1 && y === y1) {
+          // 找到了
+          queue = []
+          cells[getIndex(x, y)].style.backgroundColor = 'blue'
+          for  (let i = 0; i < node.pre.length; i++){
+            const x2 = node.pre[i]
+            await sleep(10)
+            cells[x2].style.backgroundColor = 'yellow'
+          }
+          return
+        }
+        if (x < 0 || x > width - 1 || y < 0 || y > height - 1) return
+        if (queue.find(q=>q.x===x&&q.y===y)) return
+        if (cloneMap[getIndex(x, y)] === 0) queue.push(node)
+      }
+
+    }
+    document.getElementById('star').addEventListener('click' ,function () {
+      bfs([50,50])
+    })
+  }
+</script>
+</body>
+</html>
